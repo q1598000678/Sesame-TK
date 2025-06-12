@@ -97,7 +97,6 @@ jobs:
         run: |
           normal_file=$(basename "${{ steps.extract_apks.outputs.signed_normal }}")
           compatible_file=$(basename "${{ steps.extract_apks.outputs.signed_compatible }}")
-          # 提取版本号（以"Normal-"或"Compatible-"之后的部分为起点，以"-signed"之前的内容为终点）
           version=$(echo "$normal_file" | sed -E 's/.*-(Normal|Compatible)-(.*)-signed\.apk/\2/')
           echo "normal_file=$normal_file" >> $GITHUB_OUTPUT
           echo "compatible_file=$compatible_file" >> $GITHUB_OUTPUT
@@ -135,33 +134,6 @@ jobs:
           echo "COMMIT_MESSAGE_BODY<<EOF" >> $GITHUB_OUTPUT
           echo "$COMMIT_MESSAGE_BODY" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-          
-            - Files: 
-              - Normal: `${{ steps.extract_info.outputs.normal_file }}`
-              - Compatible: `${{ steps.extract_info.outputs.compatible_file }}`
-            - Branch: `${{ github.ref_name }}`
-            - Triggered by: `${{ github.actor }}`
-
-            *下载说明:*
-              * Normal 为正常版本,适用于`Android 8.0`及以上的系统
-              * Compatible 为兼容版本,适用于`Android 7.0`及以下的系统,最低支持`Android 5.1`
-
-            ${{ steps.commit_details.outputs.COMMIT_MESSAGE_BODY }}
-          format: markdown
-
-      - name: Send Normal APK
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TG_CHAT_ID }}
-          token: ${{ secrets.TG_BOT_TOKEN }}
-          document: ${{ steps.extract_apks.outputs.signed_normal }}
-
-      - name: Send Compatible APK
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TG_CHAT_ID }}
-          token: ${{ secrets.TG_BOT_TOKEN }}
-          document: ${{ steps.extract_apks.outputs.signed_compatible }}
 
       - name: Create Tag from Version
         if: startsWith(github.ref, 'refs/heads/main') && github.event_name == 'push'
@@ -170,16 +142,17 @@ jobs:
           echo "Creating tag: $VERSION_TAG"
           git tag "$VERSION_TAG"
           git push origin "$VERSION_TAG"
+
       - name: Upload Assets to Source Release
         uses: softprops/action-gh-release@v2
         with:
-          name: ${{ github.event.release.tag_name || steps.extract_info.outputs.version }} # 发布的名称。默认为标签名称
+          name: ${{ github.event.release.tag_name || steps.extract_info.outputs.version }}
           files: |
             ${{ steps.extract_apks.outputs.signed_compatible }}
             ${{ steps.extract_apks.outputs.signed_normal }}
             CHECKSUMS-Sesame-Normal-${{ steps.extract_info.outputs.version }}.${{ env.SHORT_SHA }}-signed.apk.sha256
             CHECKSUMS-Sesame-Compatible-${{ steps.extract_info.outputs.version }}.${{ env.SHORT_SHA }}-signed.apk.sha256
-          tag_name: ${{ steps.extract_info.outputs.version}}
+          tag_name: ${{ steps.extract_info.outputs.version }}
           draft: false
           append_body: true
           generate_release_notes: true
@@ -192,14 +165,15 @@ jobs:
               * Compatible 为兼容版本,适用于`Android 7.0`及以下的系统,最低支持`Android 5.1`
 
             > ~~墙内不再更新~~ 倒卖必死全家
+
       - name: Sync Release to Target Repository
         uses: softprops/action-gh-release@v2
         with:
-          repository: Xposed-Modules-Repo/fansirsqi.xposed.sesame # 目标仓库的拥有者和仓库名称
-          name: ${{ github.event.release.tag_name || steps.extract_info.outputs.version }} # 发布的名称。默认为标签名称
+          repository: Xposed-Modules-Repo/fansirsqi.xposed.sesame
+          name: ${{ github.event.release.tag_name || steps.extract_info.outputs.version }}
           files: |
-            ${{ steps.sign_normal_apk.outputs.signedFile }}
-            ${{ steps.sign_compatible_apk.outputs.signedFile }}
+            ${{ steps.extract_apks.outputs.signed_compatible }}
+            ${{ steps.extract_apks.outputs.signed_normal }}
             CHECKSUMS-Sesame-Normal-${{ steps.extract_info.outputs.version }}.${{ env.SHORT_SHA }}-signed.apk.sha256
             CHECKSUMS-Sesame-Compatible-${{ steps.extract_info.outputs.version }}.${{ env.SHORT_SHA }}-signed.apk.sha256
           token: ${{ secrets.TARGET_REPO_PAT }}
