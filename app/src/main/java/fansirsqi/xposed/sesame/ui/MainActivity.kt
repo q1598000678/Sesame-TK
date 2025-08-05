@@ -187,7 +187,7 @@ class MainActivity : BaseActivity() {
 
             R.id.btn_settings -> {
                 showSelectionDialog(
-                    "📌 请选择配置", userNameArray, { index: Int -> this.goSettingActivity(index) }, "😡 老子就不选", {}, true
+                    "📌 请选择配置", userNameArray, { index: Int -> this.goSettingActivity(index) }, "取消", {}, true
                 )
                 return
             }
